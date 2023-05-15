@@ -1,3 +1,9 @@
+This is an yet uncompleted, unofficial attempt to translate the awesome library [1rgs/jsonformer](https://github.com/1rgs/jsonformer) into TypeScript by using numjs instead of torch.
+
+Last step to complete: 
+Huggingface transformers is not available in JavaScript, any help with how to work with or substitute the Huggingface interface and to at least get it running with the OpenAI API would be appreciated.
+
+
 # Jsonformer: A Bulletproof Way to Generate Structured JSON from Language Models.
 
 ### Problem: Getting models to output structured JSON is hard
