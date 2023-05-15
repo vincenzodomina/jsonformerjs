@@ -1,0 +1,26 @@
+{
+  "name": "jsonformerjs",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "json",
+    "generation",
+    "schema",
+    "typescript",
+    "LLM",
+    "GPT"
+  ],
+  "author": "Vincenzo Domina",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.1.4",
+    "@types/numjs": "^0.16.2"
+  },
+  "dependencies": {
+    "numjs": "^0.16.1"
+  }
+}
