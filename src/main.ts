@@ -12,8 +12,8 @@ type JsonObject = Record<string, JsonValue>;
 type JsonArray = JsonValue[];
 
 export class Jsonformer {
-  private model: any; // PreTrainedModel;
-  private tokenizer: any; // PreTrainedTokenizer;
+  private model: PreTrainedModel;
+  private tokenizer: PreTrainedTokenizer;
   private json_schema: JsonSchema;
   private prompt: string;
   private generation_marker: string;
@@ -23,11 +23,11 @@ export class Jsonformer {
   private temperature: number;
   private max_string_token_length: number;
   private value: JsonObject = {};
-  //private number_logit_processor: OutputNumbersTokens;
+  private number_logit_processor: OutputNumbersTokens;
 
   constructor(
-    model: any, //PreTrainedModel,
-    tokenizer: any, //PreTrainedTokenizer,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizer,
     json_schema: JsonSchema,
     prompt: string,
     debug = false,
@@ -41,7 +41,7 @@ export class Jsonformer {
     this.json_schema = json_schema;
     this.prompt = prompt;
 
-    //this.number_logit_processor = new OutputNumbersTokens(this.tokenizer, this.prompt);
+    this.number_logit_processor = new OutputNumbersTokens(this.tokenizer, this.prompt);
 
     this.generation_marker = "|GENERATION|";
 
@@ -72,8 +72,8 @@ export class Jsonformer {
     const response = await this.model.generate(input_tokens, {
       max_new_tokens: this.max_number_tokens,
       num_return_sequences: 1,
-      //logits_processor: [this.number_logit_processor],
-      //stopping_criteria: [new NumberStoppingCriteria(this.tokenizer, input_tokens[0].length)],
+      logits_processor: [this.number_logit_processor],
+      stopping_criteria: [new NumberStoppingCriteria(this.tokenizer, input_tokens[0].length)],
       temperature: temperature ?? this.temperature,
       pad_token_id: this.tokenizer.eos_token_id,
     });
@@ -118,7 +118,7 @@ export class Jsonformer {
       max_new_tokens: this.max_string_token_length,
       num_return_sequences: 1,
       temperature: this.temperature,
-      //stopping_criteria: [new StringStoppingCriteria(this.tokenizer, input_tokens[0].length)],
+      stopping_criteria: [new StringStoppingCriteria(this.tokenizer, input_tokens[0].length)],
       pad_token_id: this.tokenizer.eos_token_id,
     });
 
