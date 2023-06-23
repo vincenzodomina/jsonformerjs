@@ -1,4 +1,4 @@
-//import { PreTrainedModel, PreTrainedTokenizer, LogitsWarper, StoppingCriteria } from 'transformers';
+import { PreTrainedModel, PreTrainedTokenizer, LogitsWarper, StoppingCriteria } from '@xenova/transformers';
 import nj from 'numjs';
 
 type JsonSchema = {
@@ -248,102 +248,101 @@ export class Jsonformer {
 }
 
 
+class StringStoppingCriteria extends StoppingCriteria {
+  tokenizer: PreTrainedTokenizer;
+  promptLength: number;
 
-// class StringStoppingCriteria extends StoppingCriteria {
-//   tokenizer: PreTrainedTokenizer;
-//   promptLength: number;
+  constructor(tokenizer: PreTrainedTokenizer, promptLength: number) {
+    super();
+    this.tokenizer = tokenizer;
+    this.promptLength = promptLength;
+  }
 
-//   constructor(tokenizer: PreTrainedTokenizer, promptLength: number) {
-//     super();
-//     this.tokenizer = tokenizer;
-//     this.promptLength = promptLength;
-//   }
+  call(inputIds: nj.NdArray): boolean {
+    if (inputIds.shape[1] <= this.promptLength) {
+      return false;
+    }
 
-//   call(inputIds: nj.NdArray): boolean {
-//     if (inputIds.shape[1] <= this.promptLength) { // Changed from inputIds[0].length
-//       return false;
-//     }
+    const lastTokenId = inputIds.get(0, inputIds.shape[1] - 1);
+    const lastToken = this.tokenizer.decode(lastTokenId, { skipSpecialTokens: true });
 
-//     const lastTokenId = inputIds.get(0, inputIds.shape[1] - 1); // Changed from inputIds[0][inputIds[0].length - 1]
-//     const lastToken = this.tokenizer.decode(lastTokenId, { skipSpecialTokens: true });
+    const result = lastToken.includes('"');
 
-//     const result = lastToken.includes('"');
-
-//     return result;
-//   }
-// }
-
-
-// class NumberStoppingCriteria extends StoppingCriteria {
-//   tokenizer: PreTrainedTokenizer;
-//   precision: number;
-//   promptLength: number;
-
-//   constructor(tokenizer: PreTrainedTokenizer, promptLength: number, precision: number = 3) {
-//     super();
-//     this.tokenizer = tokenizer;
-//     this.precision = precision;
-//     this.promptLength = promptLength;
-//   }
-
-//   call(inputIds: nj.NdArray): boolean {
-//     const decoded = this.tokenizer.decode(
-//       inputIds.slice([0, this.promptLength]), // Changed from inputIds[0].slice(this.promptLength)
-//       { skipSpecialTokens: true }
-//     );
-
-//     if (decoded.split('.').length - 1 > 1) {
-//       return true;
-//     }
-
-//     if (
-//       decoded.split('.').length - 1 === 1 &&
-//       decoded.trim().split('.')[1].length > this.precision
-//     ) {
-//       return true;
-//     }
-
-//     if (
-//       decoded.length > 1 &&
-//       decoded.split('').some((c: any) => /\d/.test(c)) &&
-//       [' ', '\n'].includes(decoded[decoded.length - 1])
-//     ) {
-//       return true;
-//     }
-
-//     return false;
-//   }
-// }
+    return result;
+  }
+}
 
 
-// class OutputNumbersTokens extends LogitsWarper {
-//   tokenizer: PreTrainedTokenizer;
-//   tokenizedPrompt: any; // Replace with the appropriate type for `tokenizer` method return
-//   allowedMask: nj.NdArray;
+class NumberStoppingCriteria extends StoppingCriteria {
+  tokenizer: PreTrainedTokenizer;
+  precision: number;
+  promptLength: number;
 
-//   constructor(tokenizer: PreTrainedTokenizer, prompt: string) {
-//     super();
-//     this.tokenizer = tokenizer;
-//     this.tokenizedPrompt = tokenizer(prompt, { return_tensors: 'pt' });
-//     const vocabSize = tokenizer.vocabSize;
-//     this.allowedMask = nj.zeros([vocabSize]);
+  constructor(tokenizer: PreTrainedTokenizer, promptLength: number, precision: number = 3) {
+    super();
+    this.tokenizer = tokenizer;
+    this.precision = precision;
+    this.promptLength = promptLength;
+  }
 
-//     for (const [_, tokenId] of tokenizer.getVocab().entries()) {
-//       const tokenStr = tokenizer.decode(tokenId).trim();
+  call(inputIds: nj.NdArray): boolean {
+    const decoded = this.tokenizer.decode(
+      inputIds.slice([0, this.promptLength]),
+      { skipSpecialTokens: true }
+    );
 
-//       if (tokenStr === '' || (
-//         tokenStr.split('').every((c: any) => /\d|\./.test(c)) &&
-//         (tokenStr.match(/\./g) || []).length <= 1
-//       )) {
-//         this.allowedMask.set(tokenId, 1);
-//       }
-//     }
-//   }
+    if (decoded.split('.').length - 1 > 1) {
+      return true;
+    }
 
-//   call(_: any, scores: nj.NdArray): nj.NdArray {
-//     const mask = nj.tile(this.allowedMask, [scores.shape[0]]);
-//     const newScores = scores.multiply(mask).add(sscores.not().multiply(-Infinity));
+    if (
+      decoded.split('.').length - 1 === 1 &&
+      decoded.trim().split('.')[1].length > this.precision
+    ) {
+      return true;
+    }
 
-//     return newScores;
-//   }
-// }
+    if (
+      decoded.length > 1 &&
+      decoded.split('').some((c: any) => /\d/.test(c)) &&
+      [' ', '\n'].includes(decoded[decoded.length - 1])
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+}
+
+
+class OutputNumbersTokens extends LogitsWarper {
+  tokenizer: PreTrainedTokenizer;
+  tokenizedPrompt: any;
+  allowedMask: nj.NdArray;
+
+  constructor(tokenizer: PreTrainedTokenizer, prompt: string) {
+    super();
+    this.tokenizer = tokenizer;
+    this.tokenizedPrompt = tokenizer(prompt, { return_tensors: 'pt' });
+    const vocabSize = tokenizer.vocabSize;
+    this.allowedMask = nj.zeros([vocabSize]);
+
+    for (const [_, tokenId] of tokenizer.getVocab().entries()) {
+      const tokenStr = tokenizer.decode(tokenId).trim();
+
+      if (tokenStr === '' || (
+        tokenStr.split('').every((c: any) => /\d|\./.test(c)) &&
+        (tokenStr.match(/\./g) || []).length <= 1
+      )) {
+        this.allowedMask.set(tokenId, 1);
+      }
+    }
+  }
+
+  call(_: any, scores: nj.NdArray): nj.NdArray {
+    const mask = nj.tile(this.allowedMask, [scores.shape[0]]);
+    const newScores = scores.multiply(mask).add(scores.not().multiply(-Infinity));
+
+    return newScores;
+  }
+}
